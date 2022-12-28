@@ -1,0 +1,21 @@
+[package]
+name = "csgo-demo-parser"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+no_std = [] # TODO..
+
+[dependencies]
+byteorder = "1"
+anyhow = "1"
+# quick-protobuf = "0.8"
+quick-protobuf = { path = "../../quick-protobuf/quick-protobuf/" }
+
+[build-dependencies]
+anyhow = "1"
+# pb-rs = "0.9"
+pb-rs = { path = "../../quick-protobuf/pb-rs/" }
+walkdir = "2"                                    # TODO: add this line to the pb-rs README.md.... That example is borked.
+# tracing = "0.1"
+# tracing-subscriber = "0.3"
