@@ -1,5 +1,5 @@
 use crate::cursor::Cursor;
-use crate::message::{Message, MessageType};
+use crate::message::{Message};
 
 #[derive(Debug)]
 pub struct Split {
@@ -58,18 +58,16 @@ impl CommandInfo {
     }
 }
 
-
-
 #[derive(Debug)]
-pub struct Packet<'a> {
+pub struct Packet {
     command_info: CommandInfo,
     seq_nr_in: u32,
     seq_nr_out: u32,
-    messages: Vec<Message<'a>>,
+    messages: Vec<Message>,
 }
 
-impl<'a> Packet<'a> {
-    pub fn new(cursor: &'a Cursor) -> anyhow::Result<Packet<'a>> {
+impl Packet {
+    pub fn new(cursor: &Cursor) -> anyhow::Result<Packet> {
         let command_info = CommandInfo::new(cursor)?;
         let seq_nr_in = cursor.read_u32()?;
         let seq_nr_out = cursor.read_u32()?;
@@ -82,14 +80,14 @@ impl<'a> Packet<'a> {
     }
 }
 
-fn parse_messages<'a>(outer_chunk: &'a Cursor) -> anyhow::Result<Vec<Message<'a>>> {
+fn parse_messages(outer_chunk: &Cursor) -> anyhow::Result<Vec<Message>> {
     let mut messages = vec![];
     // While we have data left, read!
     while outer_chunk.available() > 0 {
         let cmd = outer_chunk.read_protobuf_var_int()?;
         let length = outer_chunk.read_protobuf_var_int()?;
         let inner_chunk = Cursor::new(outer_chunk.read_bytes(length as usize)?);
-        let msg = Message::new(&inner_chunk, MessageType::from_ordinal(cmd)?, length as u32)?;
+        let msg = Message::new(&inner_chunk, cmd, length as u32)?;
         messages.push(msg);
     }
     Ok(messages)

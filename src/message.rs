@@ -1,120 +1,108 @@
 //! This is the interface to the protobuf messages.
 
-use quick_protobuf::{BytesReader, MessageRead};
-
 use crate::cursor::Cursor;
-use crate::protos::netmessages::{self, SVC_Messages, NET_Messages};
-
-#[derive(Debug, Clone)]
-pub enum MessageType {
-    Net(netmessages::NET_Messages),
-    Svc(netmessages::SVC_Messages),
-}
-
-impl MessageType {
-    pub fn from_ordinal(which: i32) -> anyhow::Result<MessageType> {
-        match which {
-            0..=7 | 100 => Ok(MessageType::Net(NET_Messages::from(which))),
-            8..=31 | 33..=36 | 48 => Ok(MessageType::Svc(SVC_Messages::from(which)))
-        }
-    }
-}
+use crate::protos;
 
 #[derive(Debug)]
-pub enum Message<'a> {
-    NOP(netmessages::CNETMsg_NOP),
-    Disconnect(netmessages::CNETMsg_Disconnect<'a>),
-    File(netmessages::CNETMsg_File<'a>),
-    Tick(netmessages::CNETMsg_Tick),
-    StringCmd(netmessages::CNETMsg_StringCmd<'a>),
-    SetConVar(netmessages::CNETMsg_SetConVar<'a>),
-    SignonState(netmessages::CNETMsg_SignonState<'a>),
-    SplitScreenUser(netmessages::CNETMsg_SplitScreenUser),
-    PlayerAvatarData(netmessages::CNETMsg_PlayerAvatarData<'a>),
-    ServerInfo(netmessages::CSVCMsg_ServerInfo<'a>),
-    SendTable(netmessages::CSVCMsg_SendTable<'a>),
-    ClassInfo(netmessages::CSVCMsg_ClassInfo<'a>),
-    SetPause(netmessages::CSVCMsg_SetPause),
-    CreateStringTable(netmessages::CSVCMsg_CreateStringTable<'a>),
-    UpdateStringTable(netmessages::CSVCMsg_UpdateStringTable<'a>),
-    VoiceInit(netmessages::CSVCMsg_VoiceInit<'a>),
-    VoiceData(netmessages::CSVCMsg_VoiceData<'a>),
-    Print(netmessages::CSVCMsg_Print<'a>),
-    Sounds(netmessages::CSVCMsg_Sounds),
-    SetView(netmessages::CSVCMsg_SetView),
-    FixAngle(netmessages::CSVCMsg_FixAngle),
-    CrosshairAngle(netmessages::CSVCMsg_CrosshairAngle),
-    BSPDecal(netmessages::CSVCMsg_BSPDecal),
-    UserMessage(netmessages::CSVCMsg_UserMessage<'a>),
-    GameEvent(netmessages::CSVCMsg_GameEvent<'a>),
-    PacketEntities(netmessages::CSVCMsg_PacketEntities<'a>),
-    TempEntities(netmessages::CSVCMsg_TempEntities<'a>),
-    Prefetch(netmessages::CSVCMsg_Prefetch),
-    Menu(netmessages::CSVCMsg_Menu<'a>),
-    GameEventList(netmessages::CSVCMsg_GameEventList<'a>),
-    GetCvarValue(netmessages::CSVCMsg_GetCvarValue<'a>),
-    SplitScreen(netmessages::CSVCMsg_SplitScreen),
-    EntityMessage(netmessages::CSVCMsg_EntityMsg<'a>),
-    PaintmapData(netmessages::CSVCMsg_PaintmapData<'a>),
-    CmdKeyValues(netmessages::CSVCMsg_CmdKeyValues<'a>),
-    EncryptedData(netmessages::CSVCMsg_EncryptedData<'a>),
-    HltvReplay(netmessages::CSVCMsg_HltvReplay),
-    BroadcastCommand(netmessages::CSVCMsg_Broadcast_Command<'a>),
+pub enum Message {
+    Nop(protos::CnetMsgNop),
+    Disconnect(protos::CnetMsgDisconnect),
+    File(protos::CnetMsgFile),
+    Tick(protos::CnetMsgTick),
+    StringCmd(protos::CnetMsgStringCmd),
+    SetConVar(protos::CnetMsgSetConVar),
+    SignonState(protos::CnetMsgSignonState),
+    SplitScreenUser(protos::CnetMsgSplitScreenUser),
+    PlayerAvatarData(protos::CnetMsgPlayerAvatarData),
+    ServerInfo(protos::CsvcMsgServerInfo),
+    SendTable(protos::CsvcMsgSendTable),
+    ClassInfo(protos::CsvcMsgClassInfo),
+    SetPause(protos::CsvcMsgSetPause),
+    CreateStringTable(protos::CsvcMsgCreateStringTable),
+    UpdateStringTable(protos::CsvcMsgUpdateStringTable),
+    VoiceInit(protos::CsvcMsgVoiceInit),
+    VoiceData(protos::CsvcMsgVoiceData),
+    Print(protos::CsvcMsgPrint),
+    Sounds(protos::CsvcMsgSounds),
+    SetView(protos::CsvcMsgSetView),
+    FixAngle(protos::CsvcMsgFixAngle),
+    CrosshairAngle(protos::CsvcMsgCrosshairAngle),
+    BSPDecal(protos::CsvcMsgBspDecal),
+    UserMessage(protos::CsvcMsgUserMessage),
+    GameEvent(protos::CsvcMsgGameEvent),
+    PacketEntities(protos::CsvcMsgPacketEntities),
+    TempEntities(protos::CsvcMsgTempEntities),
+    Prefetch(protos::CsvcMsgPrefetch),
+    Menu(protos::CsvcMsgMenu),
+    GameEventList(protos::CsvcMsgGameEventList),
+    GetCvarValue(protos::CsvcMsgGetCvarValue),
+    SplitScreen(protos::CsvcMsgSplitScreen),
+    EntityMessage(protos::CsvcMsgEntityMsg),
+    PaintmapData(protos::CsvcMsgPaintmapData),
+    CmdKeyValues(protos::CsvcMsgCmdKeyValues),
+    EncryptedData(protos::CsvcMsgEncryptedData),
+    HltvReplay(protos::CsvcMsgHltvReplay),
+    BroadcastCommand(protos::CsvcMsgBroadcastCommand),
 }
 
-fn make<'a, T: MessageRead<'a>>(data: &'a Cursor, length: u32) -> anyhow::Result<T> {
-    let buf = data.read_bytes(length as usize)?;
-    let mut reader = BytesReader::from_bytes(buf);
-    let built = T::from_reader(&mut reader, buf)?;
-    Ok(built)
+fn make<T: Default + prost::Message>(data: &Cursor, length: u32) -> anyhow::Result<T> {
+    Ok(T::decode(data.read_bytes(length as usize)?)?)
 }
 
-impl<'a> Message<'a> {
+impl Message {
     pub fn new(
-        data: &'a Cursor,
-        message_type: MessageType,
+        data: &Cursor,
+        message_type: i32,
         length: u32,
-    ) -> anyhow::Result<Message<'a>> {
-        let message = match message_type {
-            MessageType::Net(NET_Messages::net_NOP) => Message::NOP(make(data, length)?),
-            MessageType::Net(NET_Messages::net_Disconnect) => Message::Disconnect(make(data, length)?),
-            MessageType::Net(NET_Messages::net_File) => Message::File(make(data, length)?),
-            MessageType::Net(NET_Messages::net_Tick) => Message::Tick(make(data, length)?),
-            MessageType::Net(NET_Messages::net_StringCmd) => Message::StringCmd(make(data, length)?),
-            MessageType::Net(NET_Messages::net_SetConVar) => Message::SetConVar(make(data, length)?),
-            MessageType::Net(NET_Messages::net_SignonState) => Message::SignonState(make(data, length)?),
-            MessageType::Net(NET_Messages::net_SplitScreenUser) => Message::SplitScreenUser(make(data, length)?),
-            MessageType::Net(NET_Messages::net_PlayerAvatarData) => Message::PlayerAvatarData(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_ServerInfo) => Message::ServerInfo(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_SendTable) => Message::SendTable(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_ClassInfo) => Message::ClassInfo(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_SetPause) => Message::SetPause(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_CreateStringTable) => Message::CreateStringTable(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_UpdateStringTable) => Message::UpdateStringTable(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_VoiceInit) => Message::VoiceInit(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_VoiceData) => Message::VoiceData(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_Print) => Message::Print(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_Sounds) => Message::Sounds(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_SetView) => Message::SetView(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_FixAngle) => Message::FixAngle(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_CrosshairAngle) => Message::CrosshairAngle(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_BSPDecal) => Message::BSPDecal(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_UserMessage) => Message::UserMessage(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_GameEvent) => Message::GameEvent(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_PacketEntities) => Message::PacketEntities(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_TempEntities) => Message::TempEntities(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_Prefetch) => Message::Prefetch(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_Menu) => Message::Menu(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_GameEventList) => Message::GameEventList(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_GetCvarValue) => Message::GetCvarValue(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_SplitScreen) => Message::SplitScreen(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_EntityMessage) => Message::EntityMessage(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_PaintmapData) => Message::PaintmapData(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_CmdKeyValues) => Message::CmdKeyValues(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_EncryptedData) => Message::EncryptedData(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_HltvReplay) => Message::HltvReplay(make(data, length)?),
-            MessageType::Svc(SVC_Messages::svc_Broadcast_Command) => Message::BroadcastCommand(make(data, length)?),
+    ) -> anyhow::Result<Message> {
+        //protos::NetMessages::from_i32(which).map(|nm| MessageType::Net(nm)).or_else(|| protos::SvcMessages::from_i32(which).unwrap_or_else(|| anyhow::anyhow!("Bad ordinal for Message Type: `{which}`.")))
+        let msg = if let Some(nm) = protos::NetMessages::from_i32(message_type) {
+            match nm {
+                protos::NetMessages::NetNop => Message::Nop(make(data, length)?),
+                protos::NetMessages::NetDisconnect => Message::Disconnect(make(data, length)?),
+                protos::NetMessages::NetFile => Message::File(make(data, length)?),
+                protos::NetMessages::NetSplitScreenUser => Message::SplitScreenUser(make(data, length)?),
+                protos::NetMessages::NetTick => Message::Tick(make(data, length)?),
+                protos::NetMessages::NetStringCmd => Message::StringCmd(make(data, length)?),
+                protos::NetMessages::NetSetConVar => Message::SetConVar(make(data, length)?),
+                protos::NetMessages::NetSignonState => Message::SignonState(make(data, length)?),
+                protos::NetMessages::NetPlayerAvatarData => Message::PlayerAvatarData(make(data, length)?),
+            }
+        } else if let Some(sm) = protos::SvcMessages::from_i32(message_type) {
+            match sm {
+                protos::SvcMessages::SvcServerInfo => Message::ServerInfo(make(data, length)?),
+                protos::SvcMessages::SvcSendTable => Message::SendTable(make(data, length)?),
+                protos::SvcMessages::SvcClassInfo => Message::ClassInfo(make(data, length)?),
+                protos::SvcMessages::SvcSetPause => Message::SetPause(make(data, length)?),
+                protos::SvcMessages::SvcCreateStringTable => Message::CreateStringTable(make(data, length)?),
+                protos::SvcMessages::SvcUpdateStringTable => Message::UpdateStringTable(make(data, length)?),
+                protos::SvcMessages::SvcVoiceInit => Message::VoiceInit(make(data, length)?),
+                protos::SvcMessages::SvcVoiceData => Message::VoiceData(make(data, length)?),
+                protos::SvcMessages::SvcPrint => Message::Print(make(data, length)?),
+                protos::SvcMessages::SvcSounds => Message::Sounds(make(data, length)?),
+                protos::SvcMessages::SvcSetView => Message::SetView(make(data, length)?),
+                protos::SvcMessages::SvcFixAngle => Message::FixAngle(make(data, length)?),
+                protos::SvcMessages::SvcCrosshairAngle => Message::CrosshairAngle(make(data, length)?),
+                protos::SvcMessages::SvcBspDecal => Message::BSPDecal(make(data, length)?),
+                protos::SvcMessages::SvcSplitScreen => Message::SplitScreen(make(data, length)?),
+                protos::SvcMessages::SvcUserMessage => Message::UserMessage(make(data, length)?),
+                protos::SvcMessages::SvcEntityMessage => Message::EntityMessage(make(data, length)?),
+                protos::SvcMessages::SvcGameEvent => Message::GameEvent(make(data, length)?),
+                protos::SvcMessages::SvcPacketEntities => Message::PacketEntities(make(data, length)?),
+                protos::SvcMessages::SvcTempEntities => Message::TempEntities(make(data, length)?),
+                protos::SvcMessages::SvcPrefetch => Message::Prefetch(make(data, length)?),
+                protos::SvcMessages::SvcMenu => Message::Menu(make(data, length)?),
+                protos::SvcMessages::SvcGameEventList => Message::GameEventList(make(data, length)?),
+                protos::SvcMessages::SvcGetCvarValue => Message::GetCvarValue(make(data, length)?),
+                protos::SvcMessages::SvcPaintmapData => Message::PaintmapData(make(data, length)?),
+                protos::SvcMessages::SvcCmdKeyValues => Message::CmdKeyValues(make(data, length)?),
+                protos::SvcMessages::SvcEncryptedData => Message::EncryptedData(make(data, length)?),
+                protos::SvcMessages::SvcHltvReplay => Message::HltvReplay(make(data, length)?),
+                protos::SvcMessages::SvcBroadcastCommand => Message::BroadcastCommand(make(data, length)?),
+            }
+        } else {
+            anyhow::bail!("Bad ordinal for Message Type: `{message_type}`.");
         };
-        Ok(message)
+        Ok(msg)
     }
 }

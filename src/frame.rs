@@ -1,6 +1,7 @@
 use crate::cursor::Cursor;
 use crate::packet::Packet;
 
+#[derive(Debug)]
 struct StringTables<'a> {
     d: &'a [u8],
 }
@@ -17,26 +18,26 @@ impl<'a> StringTables<'a> {
 
 #[derive(Debug)]
 pub enum Command<'a> {
-    SignOn(Packet<'a>),
-    Packet(Packet<'a>),
+    SignOn(Packet),
+    Packet(Packet),
     SyncTick,
     ConsoleCmd(&'a [u8]),
     UserCmd(&'a [u8]),
     DataTables(&'a [u8]),
     Stop,
     CustomData,
-    StringTables(&'a [u8]),
+    StringTables(StringTables<'a>),
 }
 
 impl<'a> Command<'a> {
-    pub fn new(which: u8, data: &Cursor) -> anyhow::Result<Command<'a>> {
+    pub fn new(which: u8, data: &'a Cursor) -> anyhow::Result<Command<'a>> {
         Ok(match which {
             1 => {
-                let packet = Packet::new(data);
+                let packet = Packet::new(data)?;
                 Command::SignOn(packet)
             }
             2 => {
-                let packet = Packet::new(data);
+                let packet = Packet::new(data)?;
                 Command::Packet(packet)
             }
             3 => Command::SyncTick,
@@ -94,7 +95,6 @@ impl<'a> Frame<'a> {
         let which_command = data.read_u8()?;
         let tick_number = data.read_u32()?;
         let playerslot = data.read_i8()?;
-        let mut last_frame = false;
 
         let command = Command::new(which_command, data)?;
 

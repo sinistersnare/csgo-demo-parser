@@ -10,7 +10,9 @@ pub mod cursor;
 mod frame;
 pub mod message;
 mod packet;
-mod protos;
+mod protos {
+    include!(concat!(env!("OUT_DIR"), "/_.rs"));
+}
 
 use std::fs::File;
 use std::io::{BufReader, Read};

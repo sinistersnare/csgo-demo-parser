@@ -9,13 +9,11 @@ no_std = [] # TODO..
 [dependencies]
 byteorder = "1"
 anyhow = "1"
-# quick-protobuf = "0.8"
-quick-protobuf = { path = "../../quick-protobuf/quick-protobuf/" }
+prost = "0.11"
+# TODO: can we delete this? Only need if we are using protobufs well-known types.
+prost-types = "0.11"
 
 [build-dependencies]
 anyhow = "1"
-# pb-rs = "0.9"
-pb-rs = { path = "../../quick-protobuf/pb-rs/" }
-walkdir = "2"                                    # TODO: add this line to the pb-rs README.md.... That example is borked.
-# tracing = "0.1"
-# tracing-subscriber = "0.3"
+prost-build = "0.11"
+walkdir = "2"
