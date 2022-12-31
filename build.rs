@@ -32,8 +32,10 @@ fn main() -> anyhow::Result<()> {
         in_dir.to_str().context("Bad UTF8")?
     );
     let protos = get_all_protos(in_dir.clone())?;
-
-    prost_build::compile_protos(&protos, &[&in_dir])?;
+    prost_build::Config::new()
+        .type_attribute(".", "#[derive(serde::Serialize)]")
+        // .type_attribute(".", "#[allow(clippy::enum_variant_names")
+        .compile_protos(&protos, &[&in_dir])?;
 
     Ok(())
 }

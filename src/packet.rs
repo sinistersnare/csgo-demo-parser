@@ -1,7 +1,9 @@
+use serde::Serialize;
+
 use crate::cursor::Cursor;
 use crate::message::{Message};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Split {
     flags: i32,
     /// A Vector3
@@ -43,13 +45,13 @@ impl Split {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct CommandInfo {
     u: (Split, Split),
 }
 
 impl CommandInfo {
-    pub fn new<'a>(data: &'a Cursor) -> anyhow::Result<CommandInfo> {
+    pub fn new(data: &Cursor) -> anyhow::Result<CommandInfo> {
         let a = Split::new(data)?;
         let b = Split::new(data)?;
         Ok(CommandInfo {
@@ -58,7 +60,7 @@ impl CommandInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Packet {
     command_info: CommandInfo,
     seq_nr_in: u32,
@@ -72,23 +74,22 @@ impl Packet {
         let seq_nr_in = cursor.read_u32()?;
         let seq_nr_out = cursor.read_u32()?;
         let chunk_size = cursor.read_i32()?;
-        let chunk = cursor.read_bytes(chunk_size as usize)?;
-        let messages = parse_messages(&Cursor::new(chunk))?;
+        let chunk = cursor.chunk_bytes(chunk_size as usize)?;
+        let mut messages = vec![];
+        // While we have data left, read!
+        while !chunk.is_empty() {
+            messages.push(parse_message(&chunk)?);
+        }
         Ok(Packet {
             command_info, seq_nr_in, seq_nr_out, messages,
         })
     }
 }
 
-fn parse_messages(outer_chunk: &Cursor) -> anyhow::Result<Vec<Message>> {
-    let mut messages = vec![];
-    // While we have data left, read!
-    while outer_chunk.available() > 0 {
-        let cmd = outer_chunk.read_protobuf_var_int()?;
-        let length = outer_chunk.read_protobuf_var_int()?;
-        let inner_chunk = Cursor::new(outer_chunk.read_bytes(length as usize)?);
-        let msg = Message::new(&inner_chunk, cmd, length as u32)?;
-        messages.push(msg);
-    }
-    Ok(messages)
+pub fn parse_message(chunk: &Cursor) -> anyhow::Result<Message> {
+    let cmd = chunk.read_protobuf_var_int()?;
+    let length = chunk.read_protobuf_var_int()?;
+    let inner_chunk = chunk.chunk_bytes(length as usize)?;
+    let msg = Message::new(&inner_chunk, cmd, length as u32)?;
+    Ok(msg)
 }

@@ -1,9 +1,11 @@
 //! This is the interface to the protobuf messages.
 
+use serde::Serialize;
+
 use crate::cursor::Cursor;
 use crate::protos;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum Message {
     Nop(protos::CnetMsgNop),
     Disconnect(protos::CnetMsgDisconnect),
@@ -46,7 +48,7 @@ pub enum Message {
 }
 
 fn make<T: Default + prost::Message>(data: &Cursor, length: u32) -> anyhow::Result<T> {
-    Ok(T::decode(data.read_bytes(length as usize)?)?)
+    Ok(T::decode(data.read_bytes(length as usize)?.as_ref())?)
 }
 
 impl Message {

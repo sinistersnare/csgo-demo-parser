@@ -1,36 +1,26 @@
+
+use serde::Serialize;
+
 use crate::cursor::Cursor;
 use crate::packet::Packet;
+use crate::data_tables::DataTable;
+use crate::string_tables::StringTables;
 
-#[derive(Debug)]
-struct StringTables<'a> {
-    d: &'a [u8],
-}
-
-impl<'a> StringTables<'a> {
-    pub fn new(raw: &'a [u8]) -> anyhow::Result<StringTables<'a>> {
-        // let cursor = Cursor::new(raw);
-        // let num_tables = cursor.read_u8()?;
-        // let tables = Vec::with_capacity(num_tables as usize);
-        // for n in 0..num_tables {}
-        Ok(StringTables { d: raw })
-    }
-}
-
-#[derive(Debug)]
-pub enum Command<'a> {
+#[derive(Debug, Serialize)]
+pub enum Command {
     SignOn(Packet),
     Packet(Packet),
     SyncTick,
-    ConsoleCmd(&'a [u8]),
-    UserCmd(&'a [u8]),
-    DataTables(&'a [u8]),
+    ConsoleCmd(Vec<u8>),
+    UserCmd(Vec<u8>),
+    DataTables(DataTable),
     Stop,
     CustomData,
-    StringTables(StringTables<'a>),
+    StringTables(StringTables),
 }
 
-impl<'a> Command<'a> {
-    pub fn new(which: u8, data: &'a Cursor) -> anyhow::Result<Command<'a>> {
+impl Command {
+    pub fn new(which: u8, data: &Cursor) -> anyhow::Result<Command> {
         Ok(match which {
             1 => {
                 let packet = Packet::new(data)?;
@@ -44,14 +34,14 @@ impl<'a> Command<'a> {
             4 => {
                 let length = data.read_i32()?;
                 assert!(length > 0);
-                let chunk = data.read_bytes(length as usize)?;
+                let chunk = data.read_bytes(length as usize)?.into_owned();
                 Command::ConsoleCmd(chunk)
             }
             5 => {
-                // wtf is this for
-                let x = data.read_u32()?;
+                // Unused by any parser.
+                let _outgoing_sequence = data.read_i32()?;
                 let length = data.read_i32()?;
-                let chunk = data.read_bytes(length as usize)?;
+                let chunk = data.read_bytes(length as usize)?.into_owned();
                 Command::UserCmd(chunk)
             }
             6 => {
@@ -62,36 +52,33 @@ impl<'a> Command<'a> {
                 // //And now we have the entities, we can bind events on them.
                 // BindEntites();
                 let length = data.read_i32()?;
-                let chunk = data.read_bytes(length as usize)?;
-                // let table = DataTable::new(chunk)?;
-                Command::DataTables(chunk)
+                let chunk = data.chunk_bytes(length as usize)?;
+                let table = DataTable::parse(&chunk)?;
+                Command::DataTables(table)
             }
             7 => Command::Stop,
-            8 => {
-                // CustomData
-                todo!()
-            }
+            8 => Command::CustomData,
             9 => {
                 // StringTables
                 let length = data.read_i32()?;
-                let chunk = data.read_bytes(length as usize)?;
-                let table = StringTables::new(chunk)?;
+                let chunk = data.chunk_bytes(length as usize)?;
+                let table = StringTables::parse(chunk)?;
                 Command::StringTables(table)
             }
-            n => anyhow::bail!("Bad command enumeration: {n}"),
+            n => anyhow::bail!("Not sure how to suport command: {n}"),
         })
     }
 }
 
-#[derive(Debug)]
-pub struct Frame<'a> {
-    command: Command<'a>,
+#[derive(Debug, Serialize)]
+pub struct Frame {
+    command: Command,
     tick_number: u32,
     playerslot: i8,
 }
 
-impl<'a> Frame<'a> {
-    pub fn new(data: &'a Cursor<'a>) -> anyhow::Result<Frame<'a>> {
+impl Frame {
+    pub fn new(data: &Cursor) -> anyhow::Result<Frame> {
         let which_command = data.read_u8()?;
         let tick_number = data.read_u32()?;
         let playerslot = data.read_i8()?;
@@ -104,6 +91,8 @@ impl<'a> Frame<'a> {
             playerslot,
         })
     }
-}
 
-// fn parse_packet<'a>(data: &'a Cursor) -> Packet<'a> {}
+    pub(crate) fn is_last(&self) -> bool {
+        matches!(self.command, Command::Stop)
+    }
+}

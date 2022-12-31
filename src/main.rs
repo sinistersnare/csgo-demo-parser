@@ -4,39 +4,38 @@
 //! Try https://www.hltv.org/matches/2359846/outsiders-vs-heroic-iem-rio-major-2022
 //! in the 'rewatch' tab there is a GOTV demo link.
 
-#![feature(cstr_from_bytes_until_nul)]
-
 pub mod cursor;
 mod frame;
 pub mod message;
 mod packet;
+mod data_tables;
+mod string_tables;
 mod protos {
     include!(concat!(env!("OUT_DIR"), "/_.rs"));
 }
 
+use std::borrow::Cow;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Write};
 
 use cursor::Cursor;
 use frame::Frame;
+use serde::Serialize;
 
-/// TODO: can the strings here be utf-8 or just ascii??
-/// Valve docs say wchar_t, so... utf8?
-/// TODO: There MUST be a way to make the Strings `&'a str`s.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct DemoHeader<'a> {
     /// Demo protocol version (stored in little endian)
     demo_protocol: i32,
     /// Network protocol version number (stored in little endian)
     network_protocol: u32,
     /// Max 259 characters (source is a 260 byte C-string)
-    server_name: &'a str,
+    server_name: Cow<'a, str>,
     /// Max 259 characters (source is a 260 byte C-string)
-    client_name: &'a str,
+    client_name: Cow<'a, str>,
     /// Max 259 characters (source is a 260 byte C-string)
-    map_name: &'a str,
+    map_name: Cow<'a, str>,
     /// Max 259 characters (source is a 260 byte C-string)
-    game_directory: &'a str,
+    game_directory: Cow<'a, str>,
     /// The length of the demo, in seconds
     playback_time: f32,
     /// The number of ticks in the demo
@@ -48,8 +47,8 @@ pub struct DemoHeader<'a> {
 }
 
 impl<'a> DemoHeader<'a> {
-    pub fn new<'b: 'a>(data: &'b Cursor<'a>) -> anyhow::Result<DemoHeader<'a>> {
-        assert_eq!(b"HL2DEMO\x00", data.read_bytes(8)?);
+    pub fn new<'b: 'a>(data: &'b Cursor) -> anyhow::Result<DemoHeader<'a>> {
+        assert_eq!(b"HL2DEMO\x00", data.read_bytes(8)?.as_ref());
         let demo_protocol = data.read_i32()?;
         let network_protocol = data.read_u32()?;
         let server_name = data.read_cstr(260)?;
@@ -75,10 +74,10 @@ impl<'a> DemoHeader<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Demo<'a> {
     pub header: DemoHeader<'a>,
-    pub frames: Vec<Frame<'a>>,
+    pub frames: Vec<Frame>,
 }
 
 impl<'a> Demo<'a> {
@@ -87,8 +86,10 @@ impl<'a> Demo<'a> {
         let mut frames = Vec::new();
         for i in 0..header.frames {
             let frame = Frame::new(cursor)?;
+            let is_last = frame.is_last();
             frames.push(frame);
-            if i == 0 {
+            if is_last {
+                println!("Got last frame {i}/{}", header.frames);
                 break;
             }
         }
@@ -107,7 +108,11 @@ fn main() -> anyhow::Result<()> {
     let cursor = Cursor::new(&raw);
     let demo = Demo::new(&cursor)?;
 
-    println!("DEMO: {demo:#?}");
+    let json = serde_json::to_string(&demo)?;
+
+    let output = "OUT.json";
+    let mut output = File::create(output)?;
+    output.write_all(json.as_bytes())?;
 
     Ok(())
 }
