@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 
 use serde::Serialize;
@@ -7,7 +6,7 @@ use crate::cursor::Cursor;
 
 #[derive(Debug, Serialize)]
 pub struct StringTables {
-    tables: Vec<StringTable>
+    tables: Vec<StringTable>,
 }
 
 impl StringTables {
@@ -17,9 +16,7 @@ impl StringTables {
         for _ in 0..num_tables {
             let table_name = chunk.read_cstr_until()?;
             match table_name.as_ref() {
-                "userinfo" => {
-                    tables.push(StringTable::UserInfo(PlayerInfo::parse(&chunk)?))
-                }
+                "userinfo" => tables.push(StringTable::UserInfo(PlayerInfo::parse(&chunk)?)),
                 "instancebaseline" => {
                     let num_strings = chunk.read_u16()?;
                     let mut mapping = HashMap::with_capacity(num_strings as usize);
@@ -65,9 +62,8 @@ impl StringTables {
 pub enum StringTable {
     UserInfo(HashMap<u8, PlayerInfo>),
     InstanceBaseline(HashMap<i32, Vec<u8>>),
-    ModelPrecache(Vec<String>)
+    ModelPrecache(Vec<String>),
 }
-
 
 // TODO: why cant these Strings be &'a str :'(
 #[derive(Debug, Serialize)]
@@ -110,7 +106,19 @@ impl PlayerInfo {
                 let cf4 = info_chunk.read_i32()?;
                 let custom_files = [cf1, cf2, cf3, cf4];
                 let files_downloaded = info_chunk.read_u8()?;
-                let player_info = PlayerInfo { version, xuid, name, user_id, guid, friends_id, friends_name, is_fake_player, is_hltv, custom_files, files_downloaded, };
+                let player_info = PlayerInfo {
+                    version,
+                    xuid,
+                    name,
+                    user_id,
+                    guid,
+                    friends_id,
+                    friends_name,
+                    is_fake_player,
+                    is_hltv,
+                    custom_files,
+                    files_downloaded,
+                };
                 mapping.insert(which_player, player_info);
             }
         }

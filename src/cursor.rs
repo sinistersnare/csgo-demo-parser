@@ -27,12 +27,15 @@ impl<'a> Cursor<'a> {
         let buf = self.read_bytes(amt)?.to_vec();
         Ok(Cursor {
             buf: BitReadBuffer::from(buf),
-            bit_pos: Cell::new(0)
+            bit_pos: Cell::new(0),
         })
     }
 
     pub fn remaining_bits(&self) -> usize {
-        self.buf.bit_len().checked_sub(self.bit_pos.get()).unwrap_or_default()
+        self.buf
+            .bit_len()
+            .checked_sub(self.bit_pos.get())
+            .unwrap_or_default()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -41,7 +44,7 @@ impl<'a> Cursor<'a> {
 
     /// checks if the NUMBER OF BITS LEFT are more than requested.
     fn check_bounds(&self, amt: usize) -> anyhow::Result<()> {
-        if self.remaining_bits() > amt {
+        if amt > self.remaining_bits() {
             anyhow::bail!("Read out of bounds");
         } else {
             Ok(())
@@ -141,7 +144,6 @@ impl<'a> Cursor<'a> {
         self.advance_bits((s.len() + 1) * 8)?;
         Ok(s)
     }
-
 
     /// TODO: Can we utilize prost for this?
     /// Reads a variable sized integer, like a protobuf...

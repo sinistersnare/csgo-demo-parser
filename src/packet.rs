@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::cursor::Cursor;
-use crate::message::{Message};
+use crate::message::Message;
 
 #[derive(Debug, Serialize)]
 pub struct Split {
@@ -37,11 +37,14 @@ impl Split {
         let view_angles_2 = read_triple_f32(data)?;
         let local_view_angles_2 = read_triple_f32(data)?;
         Ok(Split {
-            flags, view_origin, view_angles, local_view_angles,
-            view_origin_2, view_angles_2, local_view_angles_2
+            flags,
+            view_origin,
+            view_angles,
+            local_view_angles,
+            view_origin_2,
+            view_angles_2,
+            local_view_angles_2,
         })
-
-
     }
 }
 
@@ -54,9 +57,7 @@ impl CommandInfo {
     pub fn new(data: &Cursor) -> anyhow::Result<CommandInfo> {
         let a = Split::new(data)?;
         let b = Split::new(data)?;
-        Ok(CommandInfo {
-            u: (a, b)
-        })
+        Ok(CommandInfo { u: (a, b) })
     }
 }
 
@@ -81,7 +82,10 @@ impl Packet {
             messages.push(parse_message(&chunk)?);
         }
         Ok(Packet {
-            command_info, seq_nr_in, seq_nr_out, messages,
+            command_info,
+            seq_nr_in,
+            seq_nr_out,
+            messages,
         })
     }
 }

@@ -1,9 +1,8 @@
-
 use serde::Serialize;
 
 use crate::cursor::Cursor;
-use crate::packet::Packet;
 use crate::data_tables::DataTable;
+use crate::packet::Packet;
 use crate::string_tables::StringTables;
 
 #[derive(Debug, Serialize)]

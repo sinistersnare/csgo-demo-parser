@@ -7,19 +7,21 @@ use serde::Serialize;
 use crate::cursor::Cursor;
 use crate::message::Message;
 use crate::packet;
-use crate::protos::CsvcMsgSendTable;
 use crate::protos::csvc_msg_send_table::SendpropT;
-
+use crate::protos::CsvcMsgSendTable;
 
 #[derive(Debug, Serialize)]
 pub struct DataTable {
     data_tables: Vec<CsvcMsgSendTable>,
-    server_classes: Vec<ServerClass>,
+    pub server_classes: Vec<ServerClass>,
     service_class_bits: u8,
 }
 
 impl DataTable {
-    fn gather_excludes(send_table: &CsvcMsgSendTable, all_tables: &[CsvcMsgSendTable]) -> anyhow::Result<Vec<SendpropT>> {
+    fn gather_excludes(
+        send_table: &CsvcMsgSendTable,
+        all_tables: &[CsvcMsgSendTable],
+    ) -> anyhow::Result<Vec<SendpropT>> {
         let mut excludes = vec![];
         for prop in &send_table.props {
             let flags = PropFlags::from_bits(prop.flags() as u32).context("Bad prop flags")?;
@@ -28,7 +30,8 @@ impl DataTable {
                 excludes.push(prop.clone())
             }
             if prop.r#type() == (PropTypes::DataTable as i32) {
-                let sub_table = Self::find_by_name(all_tables, prop.dt_name()).context("No Table Found with name.")?;
+                let sub_table = Self::find_by_name(all_tables, prop.dt_name())
+                    .context("No Table Found with name.")?;
                 let inner_excludes = Self::gather_excludes(sub_table, all_tables)?;
                 excludes.extend(inner_excludes);
             }
@@ -36,7 +39,10 @@ impl DataTable {
         Ok(excludes)
     }
 
-    fn find_by_name<'a>(all_tables: &'a [CsvcMsgSendTable], name: &str) -> Option<&'a CsvcMsgSendTable> {
+    fn find_by_name<'a>(
+        all_tables: &'a [CsvcMsgSendTable],
+        name: &str,
+    ) -> Option<&'a CsvcMsgSendTable> {
         all_tables.iter().find(|t| t.net_table_name() == name)
     }
 
@@ -47,17 +53,13 @@ impl DataTable {
             let msg = packet::parse_message(cursor)?;
             match msg {
                 Message::SendTable(st) => {
-                    if let Some(b) = st.is_end {
-                        if b {
-                            break;
-                        } else {
-                            data_tables.push(st);
-                        }
+                    if st.is_end() {
+                        break;
                     } else {
-                        anyhow::bail!("No is_end field on the SendTable!");
+                        data_tables.push(st);
                     }
                 }
-                _ => anyhow::bail!("Only SendTable messages allowed.")
+                _ => anyhow::bail!("Only SendTable messages allowed."),
             }
         }
 
@@ -68,14 +70,14 @@ impl DataTable {
             server_classes.push(sc);
         }
 
-
-
         for sc in &mut server_classes {
-            let send_table = Self::find_by_name(&data_tables, &sc.owning_name).context("No owning table.")?;
+            let send_table =
+                Self::find_by_name(&data_tables, &sc.owning_name).context("No owning table.")?;
             let excludes = DataTable::gather_excludes(send_table, &data_tables)?;
             sc.fill_props(&excludes, &data_tables)?;
-            // let props = Self::gather_props(send_table, &data_tables, sc, &excludes, String::new())?;
-            // let flat = flatten(send_table, &data_tables, sc)?;
+            // let props = Self::gather_props(send_table, &data_tables, sc,
+            // &excludes, String::new())?; let flat =
+            // flatten(send_table, &data_tables, sc)?;
         }
 
         let mut iter = server_class_count;
@@ -96,37 +98,62 @@ impl DataTable {
             server_classes,
             service_class_bits,
         })
-
     }
 }
 
-fn is_prop_excluded(send_table: &CsvcMsgSendTable, prop: &SendpropT, excludes: &[SendpropT]) -> bool {
-    excludes.iter().any(|e| e.dt_name() == send_table.net_table_name() &&  e.var_name() == prop.var_name())
+fn is_prop_excluded(
+    send_table: &CsvcMsgSendTable,
+    prop: &SendpropT,
+    excludes: &[SendpropT],
+) -> bool {
+    excludes
+        .iter()
+        .any(|e| e.dt_name() == send_table.net_table_name() && e.var_name() == prop.var_name())
 }
 
 // TODO: should this be named ServiceClass?
 // TODO: take &'a str.
 #[derive(Debug, Serialize)]
-struct ServerClass {
-        /// TODO: what is this exactly.
-        class_id: i16,
-        /// The name of this ServerClass
-        name: String,
-        /// The name of the owning SendTable.
-        owning_name: String,
-        props: Vec<(SendpropT, String)>,
-        array_props: Vec<(SendpropT, String)>,
+pub struct ServerClass {
+    /// TODO: what is this exactly.
+    class_id: i16,
+    /// The name of this ServerClass
+    name: String,
+    /// The name of the owning SendTable.
+    owning_name: String,
+    pub props: Vec<Prop>,
+    array_props: Vec<Prop>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Prop {
+    inner: SendpropT,
+    path: String,
+}
+
+impl Prop {
+    pub fn new(inner: SendpropT, path: String) -> Prop {
+        Prop { inner, path }
+    }
 }
 
 impl ServerClass {
-    fn gather_props(send_table: &CsvcMsgSendTable, all_tables: &[CsvcMsgSendTable], excludes: &[SendpropT], path: String) -> anyhow::Result<(Vec<(SendpropT, String)>, Vec<(SendpropT, String)>)> {
+    fn gather_props(
+        send_table: &CsvcMsgSendTable,
+        all_tables: &[CsvcMsgSendTable],
+        excludes: &[SendpropT],
+        path: String,
+    ) -> anyhow::Result<(Vec<Prop>, Vec<Prop>)> {
         let mut store = Vec::with_capacity(send_table.props.len());
         let mut arr_store = vec![];
 
         for i in 0..send_table.props.len() {
             let prop = &send_table.props[i];
             let flags = PropFlags::from_bits(prop.flags() as u32).context("Bad Flag bits.")?;
-            if flags.contains(PropFlags::INSIDE_ARRAY) || flags.contains(PropFlags::EXCLUDE) || is_prop_excluded(send_table, prop, excludes) {
+            if flags.contains(PropFlags::INSIDE_ARRAY)
+                || flags.contains(PropFlags::EXCLUDE)
+                || is_prop_excluded(send_table, prop, excludes)
+            {
                 continue;
             }
 
@@ -145,27 +172,38 @@ impl ServerClass {
                 PropTypes::Array => {
                     // TODO: C++ code pushes the path with it... Necessary?
                     // Also how does the i-1 work here... everyone does it I guess...
-                    arr_store.push((send_table.props[i-1].clone(), prop_path.clone()));
-                    store.push((prop.clone(), prop_path));
-                },
+                    arr_store.push(Prop::new(
+                        send_table.props[i - 1].clone(),
+                        prop_path.clone(),
+                    ));
+                    store.push(Prop::new(prop.clone(), prop_path));
+                }
                 PropTypes::DataTable => {
-                    let table = DataTable::find_by_name(all_tables, prop.dt_name()).context("No table with name.")?;
+                    let table = DataTable::find_by_name(all_tables, prop.dt_name())
+                        .context("No table with name.")?;
                     // TODO:
-                    // Other impls branch if this is collapsible... and then do basically the same thing (AIUI) in both cases!
-                    // WHY!?!!?
-                    let (new_store, new_arr_store) = Self::gather_props(table, all_tables, excludes, prop_path)?;
+                    // Other impls branch if this is collapsible... and then do basically the same
+                    // thing (AIUI) in both cases! WHY!?!!?
+                    let (new_store, new_arr_store) =
+                        Self::gather_props(table, all_tables, excludes, prop_path)?;
                     store.extend(new_store);
                     arr_store.extend(new_arr_store);
-                },
-                _ => store.push((prop.clone(), prop_path))
+                }
+                _ => store.push(Prop::new(prop.clone(), prop_path)),
             }
         }
         Ok((store, arr_store))
     }
 
-    pub fn fill_props(&mut self, excludes: &[SendpropT], tables: &[CsvcMsgSendTable]) -> anyhow::Result<()> {
-        let owning_table = DataTable::find_by_name(tables, &self.owning_name).context("No DataTable found.")?;
-        let (props, array_props) = Self::gather_props(owning_table, tables, excludes, String::new())?;
+    pub fn fill_props(
+        &mut self,
+        excludes: &[SendpropT],
+        tables: &[CsvcMsgSendTable],
+    ) -> anyhow::Result<()> {
+        let owning_table =
+            DataTable::find_by_name(tables, &self.owning_name).context("No DataTable found.")?;
+        let (props, array_props) =
+            Self::gather_props(owning_table, tables, excludes, String::new())?;
         self.props = props;
         self.array_props = array_props;
         Ok(())
@@ -183,7 +221,11 @@ impl ServerClass {
         let props = vec![];
         let array_props = vec![];
         Ok(ServerClass {
-            class_id, name, owning_name, props, array_props,
+            class_id,
+            name,
+            owning_name,
+            props,
+            array_props,
         })
     }
 }
@@ -191,15 +233,15 @@ impl ServerClass {
 /// An enumeration that is used to detect the type.
 /// Just cast this to i32 to get the value as its used in the protobuf.
 enum PropTypes {
-	Int = 0,
-	Float,
-	Vector,
-	VectorXY, // Only encodes the XY of a vector, ignores Z
-	String,
-	Array,	// An array of the base types (can't be of datatables).
-	DataTable,
-	Int64,
-	NUMSendPropTypes
+    Int = 0,
+    Float,
+    Vector,
+    VectorXY, // Only encodes the XY of a vector, ignores Z
+    String,
+    Array, // An array of the base types (can't be of datatables).
+    DataTable,
+    Int64,
+    NUMSendPropTypes,
 }
 
 impl PropTypes {
