@@ -1,0 +1,29 @@
+name: Build Release
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - macos-12
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --release

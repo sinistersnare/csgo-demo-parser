@@ -32,6 +32,7 @@ The protobuf files in the `protobufs/` directory are from Valve Software.
 - no_std support. Probably Unlikely because Bitbuffer requires ownership sometimes.
 - unprettified support
 - input/output arguments so file can be renamed
+- Releasing binaries on tag push.
 - output useful information lol...
 
 ### TODO: Useful Information
