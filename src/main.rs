@@ -18,20 +18,26 @@ mod protos {
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 
+use clap::Parser;
 use cursor::Cursor;
 use demo::Demo;
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// The output file name.
+    /// If the file exists, it will be overwritten,
+    /// if the file does not exist, it will be created.
+    #[arg(short, long, default_value = "OUT.json")]
+    output: std::path::PathBuf,
+
+    /// The input .dem file to operate on.
+    input: std::path::PathBuf,
+}
+
 fn main() -> anyhow::Result<()> {
-    let fname = {
-        let arg = std::env::args().nth(1);
-        if let Some(f) = arg {
-            println!("Using file: {f:?}");
-            f
-        } else {
-            println!("Using default...");
-            "testdata/outsiders-vs-heroic-m1-mirage.dem".into()
-        }
-    };
+    let args = Args::parse();
+    let fname = args.input;
     let f = File::open(fname)?;
     let mut buf = BufReader::new(f);
     let mut raw = Vec::new();
@@ -42,7 +48,7 @@ fn main() -> anyhow::Result<()> {
 
     let json = serde_json::to_string_pretty(&demo)?;
 
-    let output = "OUT.pretty.json";
+    let output = args.output;
     let mut output = File::create(output)?;
     output.write_all(json.as_bytes())?;
 

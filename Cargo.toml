@@ -2,11 +2,13 @@
 name = "csgo-demo-parser"
 version = "0.1.0"
 edition = "2021"
+description = "A Counter-Strike: Global Offensive .dem parser"
 
 [features]
 no_std = [] # TODO..
 
 [dependencies]
+clap = { version = "4", features = ["derive"] }
 bitflags = "1"
 anyhow = "1"
 bytes = "1"

@@ -7,13 +7,35 @@ Parses `.dem` files that are given from Counter-Strike: Global Offensive.
 I got the main protobufs from The [CSGO Game Tracker](https://github.com/SteamDatabase/GameTracking-CSGO),
 and found the google protobuf file [here](https://github.com/ValvePython/csgo), but theres probably an updated version elsewhere.
 
+# Usage
+
+Get a .dem file. This can be from your own CSGO game (search for how to download these), or from the internet. [Here is a RAR of a game for testing (from HLTV)](https://www.hltv.org/download/demo/75565).
+Take that (unrar it if it is a RAR file.), and run:
+
+```
+$ cargo run --release /path/to/demofile.dem
+```
+
+And this directory will be populated with the `OUT.pretty.json`.
+
+# License
+
+This is available for OSS purposes as GPLv3 code. This means that if you use or modify the code and distribute it, you must distribute your version of this code as well.
+
+If you want to use this library for commercial purposes, please contact me, and we can come up with a deal.
+
+The protobuf files in the `protobufs/` directory are from Valve Software.
+
 ## TODO:
 
-- Move to [binrw](https://binrw.rs/) for binary parsing? Not sure how it will interact with Protobufs.
 - Move from Anyhow to Thiserror
-- Rustfmt config
-- Check out the API of [this library](https://github.com/Alpha1337k/csgo-demoparser)
-- Add license file
-- Add a license file for the Valve .proto files...?
-- We must use bytes for the protobufs, so we should probably get rid of ByteOrder.
-- no_std support. Ez with byteorder, More work to ensure it works with quick-protobuf.
+- no_std support. Probably Unlikely because Bitbuffer requires ownership sometimes.
+- unprettified support
+- input/output arguments so file can be renamed
+- output useful information lol...
+
+### TODO: Useful Information
+
+Right now, we just output a JSON dump of the Demo file (minus some seemingly useless parts that just add cruft to the format).
+
+What I want is to output concretely useful things, such as player positioning over time, and stats. I want this in a tabular format, for easy analysis.
