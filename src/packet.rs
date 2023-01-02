@@ -31,33 +31,12 @@ impl Split {
             Ok((a, b, c))
         }
         let flags = data.read_i32()?;
-        if flags != 0 {
-            println!("flags was non-zero {flags:#?}");
-        }
         let view_origin = read_triple_f32(data)?;
-        if view_origin != (0.0, 0.0, 0.0) {
-            println!("view_origin was non-zero {view_origin:#?}");
-        }
         let view_angles = read_triple_f32(data)?;
-        if view_angles != (0.0, 0.0, 0.0) {
-            println!("view_angles was non-zero {view_angles:#?}");
-        }
         let local_view_angles = read_triple_f32(data)?;
-        if local_view_angles != (0.0, 0.0, 0.0) {
-            println!("local_view_angles was non-zero {local_view_angles:#?}");
-        }
         let view_origin_2 = read_triple_f32(data)?;
-        if view_origin_2 != (0.0, 0.0, 0.0) {
-            println!("view_origin_2 was non-zero {view_origin_2:#?}");
-        }
         let view_angles_2 = read_triple_f32(data)?;
-        if view_angles_2 != (0.0, 0.0, 0.0) {
-            println!("view_angles_2 was non-zero {view_angles_2:#?}");
-        }
         let local_view_angles_2 = read_triple_f32(data)?;
-        if local_view_angles_2 != (0.0, 0.0, 0.0) {
-            println!("local_view_angles_2 was non-zero {local_view_angles_2:#?}");
-        }
         Ok(Split {
             flags,
             view_origin,
@@ -67,6 +46,16 @@ impl Split {
             view_angles_2,
             local_view_angles_2,
         })
+    }
+
+    pub fn is_nonzero(&self) -> bool {
+        self.flags != 0
+            || self.view_origin != (0.0, 0.0, 0.0)
+            || self.view_angles != (0.0, 0.0, 0.0)
+            || self.local_view_angles != (0.0, 0.0, 0.0)
+            || self.view_origin_2 != (0.0, 0.0, 0.0)
+            || self.view_angles_2 != (0.0, 0.0, 0.0)
+            || self.local_view_angles_2 != (0.0, 0.0, 0.0)
     }
 }
 
@@ -82,6 +71,10 @@ impl CommandInfo {
         let b = Split::parse(data)?;
         Ok(CommandInfo { u: (a, b) })
     }
+
+    pub fn is_nonzero(&self) -> bool {
+        self.u.0.is_nonzero() || self.u.1.is_nonzero()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -96,7 +89,10 @@ pub struct Packet {
 
 impl Packet {
     pub fn parse(cursor: &Cursor) -> anyhow::Result<Packet> {
-        let _command_info = CommandInfo::parse(cursor)?;
+        let command_info = CommandInfo::parse(cursor)?;
+        if command_info.is_nonzero() {
+            println!("Nonzero command_info: {command_info:#?}");
+        }
         let seq_nr_in = cursor.read_u32()?;
         let seq_nr_out = cursor.read_u32()?;
         let chunk_size = cursor.read_i32()?;
@@ -107,7 +103,7 @@ impl Packet {
             messages.push(parse_message(&chunk)?);
         }
         Ok(Packet {
-            _command_info,
+            _command_info: command_info,
             seq_nr_in,
             seq_nr_out,
             messages,

@@ -13,10 +13,8 @@ Get a .dem file. This can be from your own CSGO game (search for how to download
 Take that (unrar it if it is a RAR file.), and run:
 
 ```
-$ cargo run --release /path/to/demofile.dem
+$ cargo run --release -- -o OUT.json /path/to/demofile.dem
 ```
-
-And this directory will be populated with the `OUT.pretty.json`.
 
 # License
 
@@ -24,14 +22,12 @@ This is available for OSS purposes as GPLv3 code. This means that if you use or 
 
 If you want to use this library for commercial purposes, please contact me, and we can come up with a deal.
 
-The protobuf files in the `protobufs/` directory are from Valve Software.
+The protobuf files in the `protobufs/` directory are from Valve Software. See `LICENSE.valve.md` for more information.
 
 ## TODO:
 
-- Move from Anyhow to Thiserror
-- no_std support. Probably Unlikely because Bitbuffer requires ownership sometimes.
-- unprettified support
-- input/output arguments so file can be renamed
+- Move from Anyhow to Thiserror?
+- no_std support. Probably unlikely because Bitbuffer requires ownership sometimes.
 - Releasing binaries on tag push.
 - output useful information lol...
 

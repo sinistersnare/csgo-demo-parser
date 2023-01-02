@@ -33,6 +33,10 @@ struct Args {
 
     /// The input .dem file to operate on.
     input: std::path::PathBuf,
+
+    /// Minify the contents, if unset, the output JSON is 'prettified'
+    #[arg(short, long, default_value_t = false)]
+    minified: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -46,7 +50,11 @@ fn main() -> anyhow::Result<()> {
     let cursor = Cursor::new(&raw);
     let demo = Demo::parse(&cursor)?;
 
-    let json = serde_json::to_string_pretty(&demo)?;
+    let json = if !args.minified {
+        serde_json::to_string_pretty(&demo)?
+    } else {
+        serde_json::to_string(&demo)?
+    };
 
     let output = args.output;
     let mut output = File::create(output)?;
