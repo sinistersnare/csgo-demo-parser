@@ -52,7 +52,7 @@ fn make<T: Default + prost::Message>(data: &Cursor, length: u32) -> anyhow::Resu
 }
 
 impl Message {
-    pub fn new(data: &Cursor, message_type: i32, length: u32) -> anyhow::Result<Message> {
+    pub fn parse(data: &Cursor, message_type: i32, length: u32) -> anyhow::Result<Message> {
         //protos::NetMessages::from_i32(which).map(|nm|
         // MessageType::Net(nm)).or_else(||
         // protos::SvcMessages::from_i32(which).unwrap_or_else(|| anyhow::anyhow!("Bad

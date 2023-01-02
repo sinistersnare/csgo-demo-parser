@@ -19,14 +19,14 @@ pub enum Command {
 }
 
 impl Command {
-    pub fn new(which: u8, data: &Cursor) -> anyhow::Result<Command> {
+    pub fn parse(which: u8, data: &Cursor) -> anyhow::Result<Command> {
         Ok(match which {
             1 => {
-                let packet = Packet::new(data)?;
+                let packet = Packet::parse(data)?;
                 Command::SignOn(packet)
             }
             2 => {
-                let packet = Packet::new(data)?;
+                let packet = Packet::parse(data)?;
                 Command::Packet(packet)
             }
             3 => Command::SyncTick,
@@ -61,7 +61,7 @@ impl Command {
                 // StringTables
                 let length = data.read_i32()?;
                 let chunk = data.chunk_bytes(length as usize)?;
-                let table = StringTables::parse(chunk)?;
+                let table = StringTables::parse(&chunk)?;
                 Command::StringTables(table)
             }
             n => anyhow::bail!("Not sure how to suport command: {n}"),
@@ -73,21 +73,23 @@ impl Command {
 pub struct Frame {
     command: Command,
     tick_number: u32,
-    playerslot: i8,
+    /// Have not seen this ever be nonzero.
+    #[serde(skip)]
+    _playerslot: i8,
 }
 
 impl Frame {
-    pub fn new(data: &Cursor) -> anyhow::Result<Frame> {
+    pub fn parse(data: &Cursor) -> anyhow::Result<Frame> {
         let which_command = data.read_u8()?;
         let tick_number = data.read_u32()?;
-        let playerslot = data.read_i8()?;
+        let _playerslot = data.read_i8()?;
 
-        let command = Command::new(which_command, data)?;
+        let command = Command::parse(which_command, data)?;
 
         Ok(Frame {
             command,
             tick_number,
-            playerslot,
+            _playerslot,
         })
     }
 

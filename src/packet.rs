@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::cursor::Cursor;
 use crate::message::Message;
 
+/// An unused struct, only observed as a bunch of 0s.
 #[derive(Debug, Serialize)]
 pub struct Split {
     flags: i32,
@@ -22,7 +23,7 @@ pub struct Split {
 }
 
 impl Split {
-    pub fn new(data: &Cursor) -> anyhow::Result<Split> {
+    pub fn parse(data: &Cursor) -> anyhow::Result<Split> {
         fn read_triple_f32(data: &Cursor) -> anyhow::Result<(f32, f32, f32)> {
             let a = data.read_f32()?;
             let b = data.read_f32()?;
@@ -30,12 +31,33 @@ impl Split {
             Ok((a, b, c))
         }
         let flags = data.read_i32()?;
+        if flags != 0 {
+            println!("flags was non-zero {flags:#?}");
+        }
         let view_origin = read_triple_f32(data)?;
+        if view_origin != (0.0, 0.0, 0.0) {
+            println!("view_origin was non-zero {view_origin:#?}");
+        }
         let view_angles = read_triple_f32(data)?;
+        if view_angles != (0.0, 0.0, 0.0) {
+            println!("view_angles was non-zero {view_angles:#?}");
+        }
         let local_view_angles = read_triple_f32(data)?;
+        if local_view_angles != (0.0, 0.0, 0.0) {
+            println!("local_view_angles was non-zero {local_view_angles:#?}");
+        }
         let view_origin_2 = read_triple_f32(data)?;
+        if view_origin_2 != (0.0, 0.0, 0.0) {
+            println!("view_origin_2 was non-zero {view_origin_2:#?}");
+        }
         let view_angles_2 = read_triple_f32(data)?;
+        if view_angles_2 != (0.0, 0.0, 0.0) {
+            println!("view_angles_2 was non-zero {view_angles_2:#?}");
+        }
         let local_view_angles_2 = read_triple_f32(data)?;
+        if local_view_angles_2 != (0.0, 0.0, 0.0) {
+            println!("local_view_angles_2 was non-zero {local_view_angles_2:#?}");
+        }
         Ok(Split {
             flags,
             view_origin,
@@ -48,30 +70,33 @@ impl Split {
     }
 }
 
+/// An unused struct, only observed as a bunch of 0s.
 #[derive(Debug, Serialize)]
 pub struct CommandInfo {
     u: (Split, Split),
 }
 
 impl CommandInfo {
-    pub fn new(data: &Cursor) -> anyhow::Result<CommandInfo> {
-        let a = Split::new(data)?;
-        let b = Split::new(data)?;
+    pub fn parse(data: &Cursor) -> anyhow::Result<CommandInfo> {
+        let a = Split::parse(data)?;
+        let b = Split::parse(data)?;
         Ok(CommandInfo { u: (a, b) })
     }
 }
 
 #[derive(Debug, Serialize)]
 pub struct Packet {
-    command_info: CommandInfo,
+    /// I have never seen these as nonzero values.
+    #[serde(skip)]
+    _command_info: CommandInfo,
     seq_nr_in: u32,
     seq_nr_out: u32,
     messages: Vec<Message>,
 }
 
 impl Packet {
-    pub fn new(cursor: &Cursor) -> anyhow::Result<Packet> {
-        let command_info = CommandInfo::new(cursor)?;
+    pub fn parse(cursor: &Cursor) -> anyhow::Result<Packet> {
+        let _command_info = CommandInfo::parse(cursor)?;
         let seq_nr_in = cursor.read_u32()?;
         let seq_nr_out = cursor.read_u32()?;
         let chunk_size = cursor.read_i32()?;
@@ -82,7 +107,7 @@ impl Packet {
             messages.push(parse_message(&chunk)?);
         }
         Ok(Packet {
-            command_info,
+            _command_info,
             seq_nr_in,
             seq_nr_out,
             messages,
@@ -94,6 +119,6 @@ pub fn parse_message(chunk: &Cursor) -> anyhow::Result<Message> {
     let cmd = chunk.read_protobuf_var_int()?;
     let length = chunk.read_protobuf_var_int()?;
     let inner_chunk = chunk.chunk_bytes(length as usize)?;
-    let msg = Message::new(&inner_chunk, cmd, length as u32)?;
+    let msg = Message::parse(&inner_chunk, cmd, length as u32)?;
     Ok(msg)
 }

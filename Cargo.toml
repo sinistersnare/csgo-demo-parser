@@ -11,10 +11,7 @@ bitflags = "1"
 anyhow = "1"
 bytes = "1"
 bitbuffer = "0.10"
-# byteorder = "1"
 prost = "0.11"
-# # TODO: can we delete this? Only need if we are using protobufs well-known types.
-# prost-types = "0.11"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
 

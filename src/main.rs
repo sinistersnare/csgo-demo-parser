@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
     buf.read_to_end(&mut raw)?;
 
     let cursor = Cursor::new(&raw);
-    let demo = Demo::new(&cursor)?;
+    let demo = Demo::parse(&cursor)?;
 
     let json = serde_json::to_string_pretty(&demo)?;
 

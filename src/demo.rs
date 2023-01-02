@@ -30,7 +30,7 @@ pub struct DemoHeader<'a> {
 }
 
 impl<'a> DemoHeader<'a> {
-    pub fn new<'b: 'a>(data: &'b Cursor) -> anyhow::Result<DemoHeader<'a>> {
+    pub fn parse<'b: 'a>(data: &'b Cursor) -> anyhow::Result<DemoHeader<'a>> {
         assert_eq!(b"HL2DEMO\x00", data.read_bytes(8)?.as_ref());
         let demo_protocol = data.read_i32()?;
         let network_protocol = data.read_u32()?;
@@ -64,11 +64,11 @@ pub struct Demo<'a> {
 }
 
 impl<'a> Demo<'a> {
-    pub fn new(cursor: &'a Cursor) -> anyhow::Result<Demo<'a>> {
-        let header = DemoHeader::new(cursor)?;
+    pub fn parse(cursor: &'a Cursor) -> anyhow::Result<Demo<'a>> {
+        let header = DemoHeader::parse(cursor)?;
         let mut frames = Vec::new();
         for i in 0..header.frames {
-            let frame = Frame::new(cursor)?;
+            let frame = Frame::parse(cursor)?;
             let is_last = frame.is_last();
             frames.push(frame);
             if is_last {

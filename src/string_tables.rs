@@ -10,13 +10,13 @@ pub struct StringTables {
 }
 
 impl StringTables {
-    pub fn parse(chunk: Cursor) -> anyhow::Result<StringTables> {
+    pub fn parse(chunk: &Cursor) -> anyhow::Result<StringTables> {
         let num_tables = chunk.read_u8()?;
         let mut tables = Vec::with_capacity(num_tables as usize);
         for _ in 0..num_tables {
             let table_name = chunk.read_cstr_until()?;
             match table_name.as_ref() {
-                "userinfo" => tables.push(StringTable::UserInfo(PlayerInfo::parse(&chunk)?)),
+                "userinfo" => tables.push(StringTable::UserInfo(PlayerInfo::parse(chunk)?)),
                 "instancebaseline" => {
                     let num_strings = chunk.read_u16()?;
                     let mut mapping = HashMap::with_capacity(num_strings as usize);
